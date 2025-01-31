@@ -1,6 +1,10 @@
 import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import type { NextAuthOptions } from "next-auth";
+import { PrismaAdapter } from "@next-auth/prisma-adapter";
+import {PrismaClient} from "@prisma/client/extension";
+
+const prisma = new PrismaClient();
 
 if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
     throw new Error("Missing Google OAuth environment variables");
@@ -11,6 +15,7 @@ const authOptions: NextAuthOptions = {
         clientId: process.env.GOOGLE_CLIENT_ID,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET
     })],
+    adapter: PrismaAdapter(prisma),
     session: {
         strategy: 'jwt'
     },
@@ -20,6 +25,13 @@ const authOptions: NextAuthOptions = {
             token.id = user.email;
             return token;
         },
+    },
+    pages: {
+        signIn: '/auth/signin',
+        signOut: '/auth/signout',
+        error: '/auth/error', // Error code passed in query string as ?error=
+        verifyRequest: '/auth/verify-request', // (used for check email message)
+        newUser: '/auth/new-user' // New users will be directed here on first sign in (leave the property out if not of interest)
     }
 }
 const handler = NextAuth(authOptions);
