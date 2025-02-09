@@ -1,20 +1,20 @@
 "use client";
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import MuiCard from '@mui/material/Card';
+// import Card from '@mui/material/Card';
 import Checkbox from '@mui/material/Checkbox';
 import Divider from '@mui/material/Divider';
 import FormControl from '@mui/material/FormControl';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import FormLabel from '@mui/material/FormLabel';
 import Link from '@mui/material/Link';
+import { styled } from '@mui/material/styles';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { styled } from '@mui/material/styles';
-import { useTheme } from 'next-themes';
+import MuiCard from '@mui/material/Card';
+// import { useTheme } from 'next-themes';
 import * as React from 'react';
-import { FacebookIcon, GoogleIcon, SitemarkIcon } from './CustomIcons';
-import ForgotPassword from './ForgotPassword';
+import { FacebookIcon, GoogleIcon, SitemarkIcon } from '../CustomIcons';
 
 const Card = styled(MuiCard)(({ theme }) => ({
   display: 'flex',
@@ -22,38 +22,27 @@ const Card = styled(MuiCard)(({ theme }) => ({
   alignSelf: 'center',
   alignItems: 'center',
   width: '100%',
-  padding: theme.spacing(4),
-  gap: theme.spacing(2),
+  padding: '4px',
+  gap: '2px',
   margin: 'auto',
   boxShadow:
     'hsla(220, 30%, 5%, 0.05) 0px 5px 15px 0px, hsla(220, 25%, 10%, 0.05) 0px 15px 35px -5px',
-  [theme.breakpoints.up('sm')]: {
-    width: '450px',
-  },
-  backgroundColor: theme.palette.mode === 'dark' ? '#121212' : '#ffffff',
-  color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+  backgroundColor: '#00000',
+  color: '#000000',
 }));
 
-
-export default function SignInCard({ onToggle }) {
-  const { theme, setTheme } = useTheme();
+export default function SignUpCard({ onToggle }) {
   const [emailError, setEmailError] = React.useState(false);
   const [emailErrorMessage, setEmailErrorMessage] = React.useState('');
   const [passwordError, setPasswordError] = React.useState(false);
   const [passwordErrorMessage, setPasswordErrorMessage] = React.useState('');
-  const [open, setOpen] = React.useState(false);
-
-  const handleClickOpen = () => {
-    setOpen(true);
-  };
-
-  const handleClose = () => {
-    setOpen(false);
-  };
+  const [nameError, setNameError] = React.useState(false);
+  const [nameErrorMessage, setNameErrorMessage] = React.useState('');
 
   const validateInputs = () => {
     const email = document.getElementById('email');
     const password = document.getElementById('password');
+    const name = document.getElementById('name');
 
     let isValid = true;
 
@@ -75,6 +64,15 @@ export default function SignInCard({ onToggle }) {
       setPasswordErrorMessage('');
     }
 
+    if (!name.value || name.value.length < 1) {
+      setNameError(true);
+      setNameErrorMessage('Name is required.');
+      isValid = false;
+    } else {
+      setNameError(false);
+      setNameErrorMessage('');
+    }
+
     return isValid;
   };
 
@@ -83,6 +81,7 @@ export default function SignInCard({ onToggle }) {
     if (validateInputs()) {
       const data = new FormData(event.currentTarget);
       console.log({
+        name: data.get('name'),
         email: data.get('email'),
         password: data.get('password'),
       });
@@ -90,116 +89,88 @@ export default function SignInCard({ onToggle }) {
   };
 
   return (
-    
     <Card variant="outlined">
-      <Box sx={{ display: { xs: 'flex', md: 'none' } }}>
-        <SitemarkIcon />
-      </Box>
+      {/* <SitemarkIcon /> */}
       <Typography
         component="h1"
         variant="h4"
         sx={{ width: '100%', fontSize: 'clamp(2rem, 10vw, 2.15rem)' }}
       >
-        Sign in
+        Sign up
       </Typography>
       <Box
         component="form"
         onSubmit={handleSubmit}
-        noValidate
-        sx={{ display: 'flex', flexDirection: 'column', width: '100%', gap: 2 }}
+        sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
       >
+        <FormControl>
+          <FormLabel htmlFor="name">Full name</FormLabel>
+          <TextField
+            autoComplete="name"
+            name="name"
+            required
+            fullWidth
+            id="name"
+            placeholder="Jon Snow"
+            error={nameError}
+            helperText={nameErrorMessage}
+            color={nameError ? 'error' : 'primary'}
+          />
+        </FormControl>
         <FormControl>
           <FormLabel htmlFor="email">Email</FormLabel>
           <TextField
-            error={emailError}
-            helperText={emailErrorMessage}
-            id="email"
-            type="email"
-            name="email"
-            placeholder="your@email.com"
-            autoComplete="email"
-            autoFocus
             required
             fullWidth
+            id="email"
+            placeholder="your@email.com"
+            name="email"
+            autoComplete="email"
             variant="outlined"
+            error={emailError}
+            helperText={emailErrorMessage}
             color={emailError ? 'error' : 'primary'}
           />
         </FormControl>
         <FormControl>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-            <FormLabel htmlFor="password">Password</FormLabel>
-            <Link
-              component="button"
-              type="button"
-              onClick={handleClickOpen}
-              variant="body2"
-              sx={{ alignSelf: 'baseline' }}
-            >
-              Forgot your password?
-            </Link>
-          </Box>
+          <FormLabel htmlFor="password">Password</FormLabel>
           <TextField
-            error={passwordError}
-            helperText={passwordErrorMessage}
+            required
+            fullWidth
             name="password"
             placeholder="••••••"
             type="password"
             id="password"
-            autoComplete="current-password"
-            required
-            fullWidth
+            autoComplete="new-password"
             variant="outlined"
+            error={passwordError}
+            helperText={passwordErrorMessage}
             color={passwordError ? 'error' : 'primary'}
           />
         </FormControl>
         <FormControlLabel
-          control={<Checkbox value="remember" color="primary" />}
-          label="Remember me"
+          control={<Checkbox value="allowExtraEmails" color="primary" />}
+          label="I want to receive updates via email."
         />
-        <ForgotPassword open={open} handleClose={handleClose} />
-        <Button type="submit" fullWidth variant="contained">
-          Sign in
+        <Button
+          type="submit"
+          fullWidth
+          variant="contained"
+        >
+          Sign up
         </Button>
+      </Box>
         <Typography sx={{ textAlign: 'center' }}>
-          Don&apos;t have an account?{' '}
+          Already have an account?{' '}
           <Link
             href="#"
             variant="body2"
             onClick={onToggle}
             sx={{ alignSelf: 'center', cursor: 'pointer' }}
           >
-            Sign up
+            Sign in
           </Link>
         </Typography>
-      </Box>
-      <Divider>or</Divider>
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <Button
-          fullWidth
-          variant="outlined"
-          onClick={() => alert('Sign in with Google')}
-          startIcon={<GoogleIcon />}
-        >
-          Sign in with Google
-        </Button>
-        <Button
-          fullWidth
-          variant="outlined"
-          onClick={() => alert('Sign in with Facebook')}
-          startIcon={<FacebookIcon />}
-        >
-          Sign in with Facebook
-        </Button>
-        <Button 
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          variant="outlined"
-          fullWidth
-        >
-          Toggle Theme
-        </Button>
-      </Box>
     </Card>
-    
   );
-  
 }

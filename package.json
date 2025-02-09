@@ -9,6 +9,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "dependencies": {
+    "@mui/material": "^6.4.3",
     "acorn": "^8.14.0",
     "acorn-walk": "^8.3.4",
     "arg": "^4.1.3",
