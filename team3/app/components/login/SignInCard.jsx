@@ -1,20 +1,17 @@
 "use client";
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Checkbox from '@mui/material/Checkbox';
 import FormControl from '@mui/material/FormControl';
-import FormControlLabel from '@mui/material/FormControlLabel';
 import FormLabel from '@mui/material/FormLabel';
 import Link from '@mui/material/Link';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { styled } from '@mui/material/styles';
-// import Card from '@mui/material/Card';
 import MuiCard from '@mui/material/Card';
-// import { useTheme } from 'next-themes';
+import Divider from '@mui/material/Divider';
 import * as React from 'react';
-// import { FacebookIcon, GoogleIcon, SitemarkIcon } from './CustomIcons';
-// import ForgotPassword from './ForgotPassword';
+import { signIn } from "next-auth/react";
+import GoogleIcon from '@mui/icons-material/Google';
 
 const Card = styled(MuiCard)(() => ({
   display: 'flex',
@@ -31,14 +28,11 @@ const Card = styled(MuiCard)(() => ({
   color: '#000000',
 }));
 
-
 export default function SignInCard({ onToggle, handleSubmit }) {  
   const [emailError, setEmailError] = React.useState(false);
   const [emailErrorMessage, setEmailErrorMessage] = React.useState('');
   const [passwordError, setPasswordError] = React.useState(false);
   const [passwordErrorMessage, setPasswordErrorMessage] = React.useState('');
-
-
 
   const validateInputs = () => {
     const email = document.getElementById('email');
@@ -67,14 +61,14 @@ export default function SignInCard({ onToggle, handleSubmit }) {
     return isValid;
   };
 
-  
+  const handleGoogleSignIn = async () => {
+    await signIn('google', { 
+      callbackUrl: '/dashboard'  
+    });
+  };
 
   return (
-    
     <Card variant="outlined">
-      {/* <Box sx={{ display: { xs: 'flex', md: 'none' } }}>
-        <SitemarkIcon />
-      </Box> */}
       <Typography
         component="h1"
         variant="h4"
@@ -82,6 +76,31 @@ export default function SignInCard({ onToggle, handleSubmit }) {
       >
         Sign in
       </Typography>
+
+      {/* Google Sign-In Button */}
+      <Box sx={{ width: '100%', my: 2 }}>
+        <Button
+          fullWidth
+          variant="outlined"
+          startIcon={<GoogleIcon />}
+          onClick={handleGoogleSignIn}
+          sx={{ 
+            textTransform: 'none',
+            py: 1,
+            borderColor: '#ddd',
+            '&:hover': {
+              borderColor: '#888',
+            }
+          }}
+        >
+          Sign in with Google
+        </Button>
+      </Box>
+
+      <Divider sx={{ width: '100%', my: 2 }}>
+        <Typography color="textSecondary">or</Typography>
+      </Divider>
+
       <Box
         component="form"
         onSubmit={handleSubmit}
@@ -124,12 +143,17 @@ export default function SignInCard({ onToggle, handleSubmit }) {
           />
         </FormControl>
         
-        <Button type="submit" fullWidth variant="contained" onSubmit={()=>{
-          if(validateInputs()){
-            handleSubmit();
-          }
-          
-        }}>
+        <Button 
+          type="submit" 
+          fullWidth 
+          variant="contained" 
+          onClick={(e) => {
+            e.preventDefault();
+            if(validateInputs()){
+              handleSubmit();
+            }
+          }}
+        >
           Sign in
         </Button>
         <Typography sx={{ textAlign: 'center' }}>
@@ -145,7 +169,5 @@ export default function SignInCard({ onToggle, handleSubmit }) {
         </Typography>
       </Box>
     </Card>
-    
   );
-  
 }
