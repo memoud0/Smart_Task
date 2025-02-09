@@ -1,19 +1,22 @@
 "use client";
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+// import Card from '@mui/material/Card';
+import Checkbox from '@mui/material/Checkbox';
+import Divider from '@mui/material/Divider';
 import FormControl from '@mui/material/FormControl';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import FormLabel from '@mui/material/FormLabel';
 import Link from '@mui/material/Link';
+import { styled } from '@mui/material/styles';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { styled } from '@mui/material/styles';
 import MuiCard from '@mui/material/Card';
-import Divider from '@mui/material/Divider';
+// import { useTheme } from 'next-themes';
 import * as React from 'react';
-import { signIn } from "next-auth/react";
-import GoogleIcon from '@mui/icons-material/Google';
+import { FacebookIcon, GoogleIcon, SitemarkIcon } from '../CustomIcons';
 
-const Card = styled(MuiCard)(() => ({
+const Card = styled(MuiCard)(({ theme }) => ({
   display: 'flex',
   flexDirection: 'column',
   alignSelf: 'center',
@@ -28,15 +31,18 @@ const Card = styled(MuiCard)(() => ({
   color: '#000000',
 }));
 
-export default function SignInCard({ onToggle, handleSubmit }) {  
+export default function SignUpCard({ onToggle }) {
   const [emailError, setEmailError] = React.useState(false);
   const [emailErrorMessage, setEmailErrorMessage] = React.useState('');
   const [passwordError, setPasswordError] = React.useState(false);
   const [passwordErrorMessage, setPasswordErrorMessage] = React.useState('');
+  const [nameError, setNameError] = React.useState(false);
+  const [nameErrorMessage, setNameErrorMessage] = React.useState('');
 
   const validateInputs = () => {
     const email = document.getElementById('email');
     const password = document.getElementById('password');
+    const name = document.getElementById('name');
 
     let isValid = true;
 
@@ -58,116 +64,113 @@ export default function SignInCard({ onToggle, handleSubmit }) {
       setPasswordErrorMessage('');
     }
 
+    if (!name.value || name.value.length < 1) {
+      setNameError(true);
+      setNameErrorMessage('Name is required.');
+      isValid = false;
+    } else {
+      setNameError(false);
+      setNameErrorMessage('');
+    }
+
     return isValid;
   };
 
-  const handleGoogleSignIn = async () => {
-    await signIn('google', { 
-      callbackUrl: '/dashboard'  
-    });
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    if (validateInputs()) {
+      const data = new FormData(event.currentTarget);
+      console.log({
+        name: data.get('name'),
+        email: data.get('email'),
+        password: data.get('password'),
+      });
+    }
   };
 
   return (
     <Card variant="outlined">
+      {/* <SitemarkIcon /> */}
       <Typography
         component="h1"
         variant="h4"
         sx={{ width: '100%', fontSize: 'clamp(2rem, 10vw, 2.15rem)' }}
       >
-        Sign in
+        Sign up
       </Typography>
-
-      {/* Google Sign-In Button */}
-      <Box sx={{ width: '100%', my: 2 }}>
-        <Button
-          fullWidth
-          variant="outlined"
-          startIcon={<GoogleIcon />}
-          onClick={handleGoogleSignIn}
-          sx={{ 
-            textTransform: 'none',
-            py: 1,
-            borderColor: '#ddd',
-            '&:hover': {
-              borderColor: '#888',
-            }
-          }}
-        >
-          Sign in with Google
-        </Button>
-      </Box>
-
-      <Divider sx={{ width: '100%', my: 2 }}>
-        <Typography color="textSecondary">or</Typography>
-      </Divider>
-
       <Box
         component="form"
         onSubmit={handleSubmit}
-        noValidate
-        sx={{ display: 'flex', flexDirection: 'column', width: '100%', gap: 2 }}
+        sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
       >
+        <FormControl>
+          <FormLabel htmlFor="name">Full name</FormLabel>
+          <TextField
+            autoComplete="name"
+            name="name"
+            required
+            fullWidth
+            id="name"
+            placeholder="Jon Snow"
+            error={nameError}
+            helperText={nameErrorMessage}
+            color={nameError ? 'error' : 'primary'}
+          />
+        </FormControl>
         <FormControl>
           <FormLabel htmlFor="email">Email</FormLabel>
           <TextField
-            error={emailError}
-            helperText={emailErrorMessage}
-            id="email"
-            type="email"
-            name="email"
-            placeholder="your@email.com"
-            autoComplete="email"
-            autoFocus
             required
             fullWidth
+            id="email"
+            placeholder="your@email.com"
+            name="email"
+            autoComplete="email"
             variant="outlined"
+            error={emailError}
+            helperText={emailErrorMessage}
             color={emailError ? 'error' : 'primary'}
           />
         </FormControl>
         <FormControl>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-            <FormLabel htmlFor="password">Password</FormLabel>
-          </Box>
+          <FormLabel htmlFor="password">Password</FormLabel>
           <TextField
-            error={passwordError}
-            helperText={passwordErrorMessage}
+            required
+            fullWidth
             name="password"
             placeholder="••••••"
             type="password"
             id="password"
-            autoComplete="current-password"
-            required
-            fullWidth
+            autoComplete="new-password"
             variant="outlined"
+            error={passwordError}
+            helperText={passwordErrorMessage}
             color={passwordError ? 'error' : 'primary'}
           />
         </FormControl>
-        
-        <Button 
-          type="submit" 
-          fullWidth 
-          variant="contained" 
-          onClick={(e) => {
-            e.preventDefault();
-            if(validateInputs()){
-              handleSubmit();
-            }
-          }}
+        <FormControlLabel
+          control={<Checkbox value="allowExtraEmails" color="primary" />}
+          label="I want to receive updates via email."
+        />
+        <Button
+          type="submit"
+          fullWidth
+          variant="contained"
         >
-          Sign in
+          Sign up
         </Button>
+      </Box>
         <Typography sx={{ textAlign: 'center' }}>
-          Don&apos;t have an account?{' '}
+          Already have an account?{' '}
           <Link
             href="#"
             variant="body2"
             onClick={onToggle}
             sx={{ alignSelf: 'center', cursor: 'pointer' }}
           >
-            Sign up
+            Sign in
           </Link>
         </Typography>
-      </Box>
     </Card>
   );
 }
