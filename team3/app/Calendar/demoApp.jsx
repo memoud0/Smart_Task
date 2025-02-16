@@ -7,6 +7,7 @@ import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import { INITIAL_EVENTS, createEventId } from './event-utils'
 
+
 export default function DemoApp() {
   const [currentEvents, setCurrentEvents] = useState(INITIAL_EVENTS)
 
