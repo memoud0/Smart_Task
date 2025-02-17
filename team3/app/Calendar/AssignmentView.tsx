@@ -4,11 +4,19 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import FilterableTaskTable from './FilterableTaskTable'
 
+interface Task {
+  id: string;
+  title: string;
+  dueDate: string;
+  status: string;
+  priority: string;
+}
+
 export default function CalendarPage() {
   const { data: session, status } = useSession()
-  const [tasks, setTasks] = useState([])
+  const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchTasks = async () => {
@@ -19,7 +27,11 @@ export default function CalendarPage() {
           const data = await response.json()
           setTasks(data)
         } catch (err) {
-          setError(err.message)
+          if (err instanceof Error) {
+            setError(err.message)
+          } else {
+            setError('An unknown error occurred')
+          }
         } finally {
           setLoading(false)
         }
