@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useSession, signIn } from 'next-auth/react'
+import { useSession } from 'next-auth/react'
 import FilterableTaskTable from './FilterableTaskTable'
 
 export default function CalendarPage() {
@@ -12,17 +12,9 @@ export default function CalendarPage() {
 
   useEffect(() => {
     const fetchTasks = async () => {
-      if (status === 'authenticated' && session) {
+      if (status === 'authenticated') {
         try {
-          const response = await fetch('/api/tasks', {
-            headers: {
-              'Authorization': `Bearer ${session.accessToken}`
-            }
-          })
-          if (response.status === 401) {
-            signIn('google') // Redirect to sign in if unauthorized
-            return
-          }
+          const response = await fetch('/api/tasks')
           if (!response.ok) throw new Error('Failed to fetch tasks')
           const data = await response.json()
           setTasks(data)
@@ -34,10 +26,8 @@ export default function CalendarPage() {
       }
     }
 
-    if (status === 'authenticated') {
-      fetchTasks()
-    }
-  }, [status, session])
+    fetchTasks()
+  }, [status])
 
   if (status === 'loading' || loading) {
     return <div className="flex justify-center items-center min-h-screen">
@@ -46,16 +36,9 @@ export default function CalendarPage() {
   }
 
   if (status === 'unauthenticated') {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <button
-          onClick={() => signIn('google')}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-        >
-          Sign in with Google
-        </button>
-      </div>
-    )
+    return <div className="flex justify-center items-center min-h-screen">
+      <p className="text-lg">Please sign in to view your tasks</p>
+    </div>
   }
 
   if (error) {

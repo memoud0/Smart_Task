@@ -1,7 +1,20 @@
 import { handlers } from "@/app/auth"
 import NextAuth from 'next-auth'
 import Google from 'next-auth/providers/google'
-
+import { JWT } from 'next-auth/jwt'
+import { Session } from 'next-auth'
+// Define custom types
+declare module 'next-auth' {
+    interface Session {
+      accessToken?: string;
+    }
+  }
+  
+  declare module 'next-auth/jwt' {
+    interface JWT {
+      accessToken?: string;
+    }
+  }
 export const authOptions = {
   providers: [
     Google({
@@ -15,13 +28,13 @@ export const authOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, account }) {
+    async jwt({ token, account }: { token: JWT; account: any }) {
       if (account) {
         token.accessToken = account.access_token
       }
       return token
     },
-    async session({ session, token }) {
+    async session({ session, token }: { session: Session; token: JWT }) {
       session.accessToken = token.accessToken
       return session
     }

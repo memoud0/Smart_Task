@@ -1,55 +1,78 @@
 import React, { useState } from 'react';
 import { ArrowUpDown } from "lucide-react";
 
-const FilterableTaskTable = ({ initialTasks = [] }) => {
-  const [tasks, setTasks] = useState(initialTasks);
-  const [filters, setFilters] = useState({
-    title: '',
-    status: '',
-    priority: ''
-  });
-  const [sortConfig, setSortConfig] = useState({
-    key: null,
-    direction: 'asc'
-  });
-
-  const handleSort = (key) => {
-    let direction = 'asc';
-    if (sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
-    }
-    setSortConfig({ key, direction });
-
-    const sortedTasks = [...tasks].sort((a, b) => {
-      if (a[key] < b[key]) return direction === 'asc' ? -1 : 1;
-      if (a[key] > b[key]) return direction === 'asc' ? 1 : -1;
-      return 0;
+interface Task {
+    id: string;
+    title: string;
+    dueDate: string;
+    status: string;
+    priority: string;
+  }
+  
+  interface FilterableTaskTableProps {
+    initialTasks: Task[];
+  }
+  
+  interface Filters {
+    title: string;
+    status: string;
+    priority: string;
+  }
+  
+  interface SortConfig {
+    key: keyof Task | null;
+    direction: 'asc' | 'desc';
+  }
+  
+  const FilterableTaskTable: React.FC<FilterableTaskTableProps> = ({ initialTasks = [] }) => {
+    const [tasks, setTasks] = useState<Task[]>(initialTasks);
+    const [filters, setFilters] = useState<Filters>({
+      title: '',
+      status: '',
+      priority: ''
     });
-    setTasks(sortedTasks);
-  };
-
-  const handleFilter = (key, value) => {
-    const newFilters = { ...filters, [key]: value };
-    setFilters(newFilters);
-
-    const filteredTasks = initialTasks.filter(task => {
-      return Object.keys(newFilters).every(filterKey => {
-        const filterValue = newFilters[filterKey].toLowerCase();
-        if (!filterValue) return true;
-        return String(task[filterKey]).toLowerCase().includes(filterValue);
+    const [sortConfig, setSortConfig] = useState<SortConfig>({
+      key: null,
+      direction: 'asc'
+    });
+  
+    const handleSort = (key: keyof Task) => {
+      let direction: 'asc' | 'desc' = 'asc';
+      if (sortConfig.key === key && sortConfig.direction === 'asc') {
+        direction = 'desc';
+      }
+      setSortConfig({ key, direction });
+  
+      const sortedTasks = [...tasks].sort((a, b) => {
+        if (a[key] < b[key]) return direction === 'asc' ? -1 : 1;
+        if (a[key] > b[key]) return direction === 'asc' ? 1 : -1;
+        return 0;
       });
-    });
-
-    setTasks(filteredTasks);
-  };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
+      setTasks(sortedTasks);
+    };
+  
+    const handleFilter = (key: keyof Filters, value: string) => {
+      const newFilters = { ...filters, [key]: value };
+      setFilters(newFilters);
+  
+      const filteredTasks = initialTasks.filter(task => {
+        return Object.keys(newFilters).every(filterKey => {
+          const filterValue = newFilters[filterKey as keyof Filters].toLowerCase();
+          if (!filterValue) return true;
+          return String(task[filterKey as keyof Task]).toLowerCase().includes(filterValue);
+        });
+      });
+  
+      setTasks(filteredTasks);
+    };
+  
+    const formatDate = (dateString: string) => {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+    };
 
   return (
     <div className="space-y-4">
