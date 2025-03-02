@@ -56,7 +56,7 @@ export function LoginForm() {
     console.log("Google login triggered");
     e.preventDefault();
 
-    signIn("google", { callbackUrl: "localhost:3000/Calendar" }).then((response) => {
+    signIn("google", { callbackUrl: "http://localhost:3000/Calendar" }).then((response) => {
       if (response?.error) {
         console.log("Error logging in with Google");
       }
