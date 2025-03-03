@@ -58,14 +58,12 @@ export async function POST(req: Request) {
         }
 
         const messages = await openai.beta.threads.messages.list(thread.id);
-        console.log(messages.data[0].content);
+        const response = messages.data[0].content[0].text.value;
+        console.log(messages.data[0].content); //messages.data[0].content.text.value contains the estimated time "hh:mm"
         console.log(messages.data[1].content);
+        console.log(messages.data[0].content[0].text.value);
         return NextResponse.json({
-            message: "File processed successfully!",
-            assistantResponse: messages.data.map((msg) => ({
-                role: msg.role,
-                content: msg.content,
-            })),
+            message: response,
         });
     } catch (error: any) {
         console.error("Error:", error);

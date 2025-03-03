@@ -32,14 +32,7 @@ export default function AssistantChat() {
             });
 
             const result = await response.json();
-            if (result.threadId && result.runId) {
-                setStatus("File sent to assistant. Waiting for response...");
-                setThreadId(result.threadId);
-                setRunId(result.runId);
-                pollForResponse(result.threadId, result.runId);
-            } else {
-                setStatus("Upload failed.");
-            }
+            setStatus(result.message);
         } catch (error) {
             console.error("Upload error:", error);
             setStatus("Error uploading file.");
