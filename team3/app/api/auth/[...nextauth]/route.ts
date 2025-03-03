@@ -1,38 +1,45 @@
-import NextAuth from "next-auth";
-import GoogleProvider from "next-auth/providers/google";
-import type { NextAuthOptions } from "next-auth";
-import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import {PrismaClient} from "@prisma/client";
-
-const prisma = new PrismaClient();
-
-if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-    throw new Error("Missing Google OAuth environment variables");
-}
-
-const authOptions: NextAuthOptions = {
-    providers: [GoogleProvider({
-        clientId: process.env.GOOGLE_CLIENT_ID,
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET
-    })],
-    adapter: PrismaAdapter(prisma),
-    session: {
-        strategy: 'jwt'
-    },
-    callbacks: {
-        async jwt({token, user}){
-            //This is a placeholder. We should use the user's email to retrieve user_id from DB
-            token.id = user.email;
-            return token;
-        },
-    },
-    pages: {
-        signIn: '/auth/signin',
-        signOut: '/auth/signout',
-        error: '/auth/error',
-        verifyRequest: '/auth/verify-request',
-        newUser: '/auth/new-user'
+import { handlers } from "@/app/auth"
+import NextAuth from 'next-auth'
+import Google from 'next-auth/providers/google'
+import { JWT } from 'next-auth/jwt'
+import { Session } from 'next-auth'
+// Define custom types
+declare module 'next-auth' {
+    interface Session {
+      accessToken?: string;
     }
+  }
+  
+  declare module 'next-auth/jwt' {
+    interface JWT {
+      accessToken?: string;
+    }
+  }
+export const authOptions = {
+  providers: [
+    Google({
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      authorization: {
+        params: {
+          scope: 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events.readonly',
+        },
+      },
+    }),
+  ],
+  callbacks: {
+    async jwt({ token, account }: { token: JWT; account: any }) {
+      if (account) {
+        token.accessToken = account.access_token
+      }
+      return token
+    },
+    async session({ session, token }: { session: Session; token: JWT }) {
+      session.accessToken = token.accessToken
+      return session
+    }
+  }
 }
-const handler = NextAuth(authOptions);
-export {handler as GET, handler as POST}
+
+const handler = NextAuth(authOptions)
+export const { GET, POST } = handlers
