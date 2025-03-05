@@ -16,17 +16,16 @@ declare module "next-auth/jwt" {
   }
 }
 
-export const { auth, handlers} = NextAuth({
+export const { auth, handlers } = NextAuth({
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       authorization: {
         params: {
-          scope: 'openid email profile https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events.readonly',
-          prompt: "consent",
-          access_type: "offline",
-          response_type: "code"
+          scope: 'openid email profile https://www.googleapis.com/auth/calendar', 
+          prompt: "consent", // Force re-consent to get full permissions
+          access_type: "offline" // Allows refresh tokens
         }
       }
     }),
@@ -57,16 +56,31 @@ export const { auth, handlers} = NextAuth({
   callbacks: {
     async jwt({ token, account }) {
       if (account) {
-        token.accessToken = account.access_token
+        token.accessToken = account.access_token;
+        token.refreshToken = account.refresh_token;
+        token.accessTokenExpires = account.expires_at 
+          ? account.expires_at * 1000 
+          : Date.now() + 3600 * 1000; // 1 hour from now
       }
-      return token
+
+      // Check if token is expired
+      const isExpired = Date.now() > (token.accessTokenExpires as number);
+      if (isExpired) {
+        try {
+          // Implement token refresh logic here if needed
+          // This might involve calling Google's token endpoint
+        } catch (error) {
+          console.error('Token refresh error', error);
+          // Force re-authentication if refresh fails
+          return {};
+        }
+      }
+
+      return token;
     },
     async session({ session, token }) {
-      session.accessToken = token.accessToken
-      return session
-    },
-    async redirect({ baseUrl }) {
-      return baseUrl + '/Calendar' 
-    },
+      session.accessToken = token.accessToken;
+      return session;
+    }
   },
 })
