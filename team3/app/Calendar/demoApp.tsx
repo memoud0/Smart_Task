@@ -1,7 +1,6 @@
 "use client"
 import React, { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
-// import { formatDate } from '@fullcalendar/core'
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
@@ -9,28 +8,26 @@ import interactionPlugin from '@fullcalendar/interaction'
 import { DateSelectArg, EventClickArg } from '@fullcalendar/core'
 import EventDialog from './Dialog'
 
-// Type for Google Calendar Event
-interface GoogleCalendarEvent {
-  id?: string;
-  summary?: string;
+// Type for our stored event
+interface StoredEvent {
+  id: string;
+  title: string;
+  start: string;
+  end: string;
   description?: string;
   location?: string;
-  start?: {
-    dateTime?: string;
-    date?: string;
-  };
-  end?: {
-    dateTime?: string;
-    date?: string;
-  };
+  allDay?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export default function CalendarComponent() {
   const { data: session } = useSession();
-  const [currentEvents, setCurrentEvents] = useState([]);
+  const [currentEvents, setCurrentEvents] = useState<StoredEvent[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedStart, setSelectedStart] = useState<Date | null>(null);
   const [selectedEnd, setSelectedEnd] = useState<Date | null>(null);
+  
   interface EditingEvent {
     id: string;
     title: string;
@@ -44,67 +41,40 @@ export default function CalendarComponent() {
   const [isLoading, setIsLoading] = useState(true);
   const calendarRef = useRef<FullCalendar>(null);
 
-  // Fetch Google Calendar events
+  // Fetch events from our API
   useEffect(() => {
-    async function fetchGoogleCalendarEvents() {
-      if (!session?.accessToken) {
-        console.log('No access token available');
+    async function fetchEvents() {
+      if (!session?.user?.email) {
         setIsLoading(false);
         return;
       }
 
       try {
         setIsLoading(true);
-        // Get current time range (this month)
-        const now = new Date();
-        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-
-        const response = await fetch(
-          `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${firstDay.toISOString()}&timeMax=${lastDay.toISOString()}`,
-          {
-            headers: {
-              Authorization: `Bearer ${session.accessToken}`,
-            },
-          }
-        );
+        const userId = session.user.email.replace(/[^a-zA-Z0-9]/g, '_');
+        const response = await fetch(`/api/events/${userId}`);
 
         if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Failed to fetch events: ${errorText}`);
+          throw new Error(`Failed to fetch events: ${response.statusText}`);
         }
 
-        const data = await response.json();
-        
-        // Transform Google Calendar events to FullCalendar format
-        const formattedEvents = data.items.map((event: GoogleCalendarEvent) => ({
-          id: event.id,
-          title: event.summary || 'Untitled Event',
-          start: event.start?.dateTime || event.start?.date,
-          end: event.end?.dateTime || event.end?.date,
-          extendedProps: {
-            description: event.description,
-            location: event.location
-          },
-          allDay: !event.start?.dateTime // If no time is specified, it's an all-day event
-        }));
-
-        setCurrentEvents(formattedEvents);
+        const events = await response.json();
+        setCurrentEvents(events);
       } catch (error) {
-        console.error('Error fetching Google Calendar events:', error);
+        console.error('Error fetching events:', error);
         alert('Failed to fetch events. Please try again.');
       } finally {
         setIsLoading(false);
       }
     }
 
-    if (session?.accessToken) {
-      fetchGoogleCalendarEvents();
+    if (session?.user?.email) {
+      fetchEvents();
     }
-  }, [session?.accessToken]);
+  }, [session?.user?.email]);
 
-  // Create a new event on Google Calendar
-  async function createGoogleCalendarEvent(eventData: {
+  // Create a new event
+  async function createEvent(eventData: {
     title: string;
     description?: string;
     startDate: string;
@@ -115,36 +85,49 @@ export default function CalendarComponent() {
     attendees?: string[];
     recurrence?: string;
   }) {
+    if (!session?.user?.email) {
+      console.error('No user email available');
+      return null;
+    }
+
     try {
-      const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+      // Format dates for storage
+      const startDateTime = new Date(`${eventData.startDate}T${eventData.startTime}:00`);
+      const endDateTime = new Date(`${eventData.endDate}T${eventData.endTime}:00`);
+
+      const newEvent = {
+        id: Date.now().toString(),
+        title: eventData.title,
+        description: eventData.description,
+        location: eventData.location,
+        start: startDateTime.toISOString(),
+        end: endDateTime.toISOString(),
+        allDay: false
+      };
+
+      const userId = session.user.email.replace(/[^a-zA-Z0-9]/g, '_');
+      const response = await fetch(`/api/events/${userId}`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${session?.accessToken}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(eventData)
+        body: JSON.stringify(newEvent)
       });
-  
-      // More comprehensive error handling
+
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Full error response:', {
-          status: response.status,
-          statusText: response.statusText,
-          body: errorText
-        });
-        throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
+        throw new Error(`Failed to create event: ${errorText}`);
       }
-  
+
       return await response.json();
     } catch (error) {
-      console.error('Detailed event creation error:', error);
+      console.error('Error creating event:', error);
       throw error;
     }
   }
 
-  // Update an existing event on Google Calendar
-  async function updateGoogleCalendarEvent(eventData: {
+  // Update an existing event
+  async function updateEvent(eventData: {
     eventId?: string;
     title: string;
     description?: string;
@@ -156,72 +139,58 @@ export default function CalendarComponent() {
     attendees?: string[];
     recurrence?: string;
   }) {
-    if (!session?.accessToken || !eventData.eventId) {
-      console.error('No access token or event ID available');
+    if (!session?.user?.email || !eventData.eventId) {
+      console.error('No user email or event ID available');
       return null;
     }
 
     try {
-      // Ensure correct date-time formatting
+      // Format dates for storage
       const startDateTime = new Date(`${eventData.startDate}T${eventData.startTime}:00`);
       const endDateTime = new Date(`${eventData.endDate}T${eventData.endTime}:00`);
 
-      const eventBody = {
-        summary: eventData.title,
+      const updatedEvent = {
+        id: eventData.eventId,
+        title: eventData.title,
         description: eventData.description,
         location: eventData.location,
-        start: { 
-          dateTime: startDateTime.toISOString()
-        },
-        end: { 
-          dateTime: endDateTime.toISOString()
-        },
-        recurrence: eventData.recurrence ? [`RRULE:FREQ=${eventData.recurrence}`] : undefined,
-        attendees: eventData.attendees?.map(email => ({ email }))
+        start: startDateTime.toISOString(),
+        end: endDateTime.toISOString(),
+        allDay: false
       };
 
-      console.log('Updating event with body:', JSON.stringify(eventBody, null, 2));
-
-      const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventData.eventId}`, {
+      const userId = session.user.email.replace(/[^a-zA-Z0-9]/g, '_');
+      const response = await fetch(`/api/events/${userId}/${eventData.eventId}`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${session.accessToken}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(eventBody)
+        body: JSON.stringify(updatedEvent)
       });
 
-      // Log the full response for debugging
-      const responseText = await response.text();
-      console.log('Full response:', responseText);
-
       if (!response.ok) {
-        throw new Error(`Failed to update event: ${responseText}`);
+        const errorText = await response.text();
+        throw new Error(`Failed to update event: ${errorText}`);
       }
 
-      const updatedEvent = JSON.parse(responseText);
-      return updatedEvent;
+      return await response.json();
     } catch (error) {
-      console.error('Detailed error updating Google Calendar event:', error);
-      alert('Failed to update event. Please check your details and try again.');
+      console.error('Error updating event:', error);
       return null;
     }
   }
 
-  // Delete event from Google Calendar
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async function deleteGoogleCalendarEvent(eventId: string) {
-    if (!session?.accessToken) {
-      console.error('No access token available');
+  // Delete event
+  async function deleteEvent(eventId: string) {
+    if (!session?.user?.email) {
+      console.error('No user email available');
       return false;
     }
 
     try {
-      const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${session.accessToken}`
-        }
+      const userId = session.user.email.replace(/[^a-zA-Z0-9]/g, '_');
+      const response = await fetch(`/api/events/${userId}/${eventId}`, {
+        method: 'DELETE'
       });
 
       if (!response.ok) {
@@ -231,7 +200,7 @@ export default function CalendarComponent() {
 
       return true;
     } catch (error) {
-      console.error('Error deleting Google Calendar event:', error);
+      console.error('Error deleting event:', error);
       alert('Failed to delete event. Please try again.');
       return false;
     }
@@ -252,8 +221,8 @@ export default function CalendarComponent() {
       title: event.title,
       start: event.start || current_date,
       end: event.end || current_date,
-      description: event.extendedProps.description,
-      location: event.extendedProps.location
+      description: event.extendedProps?.description,
+      location: event.extendedProps?.location
     });
     setIsDialogOpen(true);
   }
@@ -293,49 +262,160 @@ export default function CalendarComponent() {
         return;
       }
 
-      if (eventData.eventId) {
-        // Update existing event
-        result = await updateGoogleCalendarEvent(eventData);
-        console.log('Update result:', result);
-      } else {
-        // Create new event
-        result = await createGoogleCalendarEvent(eventData);
-        console.log('Create result:', result);
-      }
-
-      if (result) {
-        console.log('Event added/updated in calendar');
-        
-        // Remove existing event if updating
-        if (eventData.eventId) {
-          const existingEvent = calendarApi?.getEventById(eventData.eventId);
-          if (existingEvent) {
-            existingEvent.remove();
+      // If file is provided and "Plan for me" is requested
+      if (eventData) {
+        // Create FormData for the planning API
+        const formData = new FormData();
+        Object.entries(eventData).forEach(([key, value]) => {
+          if (value instanceof Date) {
+            formData.append(key, value.toISOString());
+          } 
+          else if(typeof value === 'number') {
+              formData.append(key, (value as number).toString());
           }
+          else if (typeof value === 'string' || value instanceof File) {
+            formData.append(key, value);
+          }        
+        });
+        // formData.append('title', eventData.title);
+        // if 
+        // formData.append('file', eventData.file);
+        
+        
+        if (eventData.eventId) {
+          // Update existing event
+          result = await updateEvent(eventData);
+        } else {
+          // Create new event
+          result = await createEvent(eventData);
         }
+
+        if (result) {
+          console.log('Event added/updated in calendar');
+          
+          // Remove existing event if updating
+          if (eventData.eventId) {
+            const existingEvent = calendarApi?.getEventById(eventData.eventId);
+            if (existingEvent) {
+              existingEvent.remove();
+            }
+          }
         
         // Add new/updated event to calendar
-        calendarApi?.addEvent({
-          id: result.id,
-          title: result.summary,
-          start: result.start.dateTime,
-          end: result.end.dateTime,
-          extendedProps: {
-            description: result.description,
-            location: result.location
+          calendarApi?.addEvent({
+            id: result.id,
+            title: result.title,
+            start: result.start,
+            end: result.end,
+            extendedProps: {
+              description: result.description,
+              location: result.location
+            }
+          });
+        
+        // Refresh events from server
+          const userId = session?.user?.email?.replace(/[^a-zA-Z0-9]/g, '_');
+          const response = await fetch(`/api/events/${userId}`);
+          if (response.ok) {
+            const updatedEvents = await response.json();
+            setCurrentEvents(updatedEvents);
           }
-        });
-      } else {
-        console.error('Failed to save event');
-        alert('Failed to save event. Please try again.');
+        }
+        else {
+          console.error('Failed to save event');
+          alert('Failed to save event. Please try again.');
+        }
       }
+    } 
+    catch (error) {
+        console.error('Error saving event:', error);
+        alert('Failed to save event. Please try again.');
+    }
 
-      handleDialogClose();
+    handleDialogClose();
+    
+  }
+
+  async function handlePlanForMe(eventData: {
+    title: string;
+    description?: string;
+    startDate?: string;
+    startTime?: string;
+    endDate?: string;
+    endTime?: string;
+    location?: string;
+    file: File | null;
+  }) {
+    if (!eventData.file) {
+      alert('Please upload a file to use the "Plan for me" feature');
+      return null;
+    }
+  
+    try {
+      // Show loading state
+      // You might want to add a loading state to your dialog component
+      
+      // Create FormData for the planning API
+      const formData = new FormData();
+      formData.append('title', eventData.title);
+      formData.append('file', eventData.file);
+      
+      // Add any other relevant form data
+      if (eventData.description) formData.append('description', eventData.description);
+      if (eventData.location) formData.append('location', eventData.location);
+      
+      // Send request to the planning endpoint
+      const response = await fetch('/api/plan-for-me', {
+        method: 'POST',
+        body: formData,
+      });
+  
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to plan event: ${errorText}`);
+      }
+  
+      const result = await response.json();
+      
+      // Parse the response
+      let scheduledEvent;
+      try {
+        // The response might be a string that needs to be parsed
+        const messageContent = typeof result.message === 'string' 
+          ? JSON.parse(result.message) 
+          : result.message;
+        
+        // Extract start and end times
+        const startDateTime = new Date(messageContent.start);
+        const endDateTime = new Date(messageContent.end);
+        
+        // Format dates for the form
+        const startDate = startDateTime.toISOString().split('T')[0];
+        const startTime = startDateTime.toISOString().split('T')[1].substring(0, 5);
+        const endDate = endDateTime.toISOString().split('T')[0];
+        const endTime = endDateTime.toISOString().split('T')[1].substring(0, 5);
+        
+        scheduledEvent = {
+          title: eventData.title,
+          description: eventData.description,
+          startDate,
+          startTime,
+          endDate,
+          endTime,
+        };
+      } catch (parseError) {
+        console.error('Error parsing AI response:', parseError);
+        throw new Error('Failed to parse AI scheduling response');
+      }
+      
+      return scheduledEvent;
     } catch (error) {
-      console.error('Comprehensive error saving event:', error);
-      alert('An error occurred while saving the event');
+      console.error('Error planning event:', error);
+      alert('Failed to plan event. Please try again.');
+      return null;
     }
   }
+  
 
   // If no session, show login prompt
   if (!session) {
@@ -384,6 +464,8 @@ export default function CalendarComponent() {
         selectedStart={selectedStart}
         selectedEnd={selectedEnd}
         existingEvent={editingEvent}
+        onPlanForMe={handlePlanForMe}
+        
       />
     </div>
   )

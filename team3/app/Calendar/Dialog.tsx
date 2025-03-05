@@ -12,6 +12,21 @@ import {
   FormControl
 } from '@mui/material';
 
+interface eventObject{
+    title: string;
+    description: string | null;
+    startDate: string;
+    startTime: string;
+    endDate: string;
+    endTime: string;
+    location: string;
+    attendees: string[];
+    file: File | null;
+    eventId: string | undefined;
+    recurrence: string;
+};
+
+
 // Extend the interface to support editing existing events
 interface EventDialogProps {
   open: boolean;
@@ -39,6 +54,7 @@ interface EventDialogProps {
     start?: Date;
     end?: Date;
   } | null;
+  onPlanForMe: (eventData: eventObject) => eventObject | null;
 }
 
 export default function EventDialog({
@@ -115,6 +131,51 @@ export default function EventDialog({
     }
   };
 
+// In EventDialog.tsx
+const handlePlanForMe = async () => {
+  // Validate required fields
+  if (!title) {
+    alert('Please enter a title for your event');
+    return;
+  }
+
+  if (!file) {
+    alert('Please upload a file to use the "AI Event Planner" feature');
+    return;
+  }
+
+  try {
+    // Prepare the data to send
+    const eventData = {
+      title,
+      description,
+      location,
+      file
+    };
+
+    // Call the parent component's onPlanForMe function and await its response
+    const scheduledEvent = onPlanForMe(eventData);
+    
+    // If we got a valid response back, update all the form fields
+    if (scheduledEvent) {
+      setTitle(scheduledEvent.title);
+      setDescription(scheduledEvent.description || description);
+      setStartDate(scheduledEvent.startDate);
+      setStartTime(scheduledEvent.startTime);
+      setEndDate(scheduledEvent.endDate);
+      setEndTime(scheduledEvent.endTime);
+      setLocation(scheduledEvent.location || location);
+      
+      // Optionally show a success message
+      alert('Event has been scheduled by AI!');
+    }
+  } catch (error) {
+    console.error('Error in AI planning:', error);
+    alert('Failed to plan your event. Please try again.');
+  }
+};
+
+
   const handleSave = () => {
     // Validate required fields
     if (!title || !startDate || !startTime || !endDate || !endTime) {
@@ -169,11 +230,11 @@ export default function EventDialog({
     setRecurrence('');
   };
 
-  const handlePlanForMe = () => {
-    // TODO: Implement AI-powered event planning
-    // This could open a modal or trigger an API call to suggest event details
-    alert("AI Event Planner coming soon!");
-  };
+  // const handlePlanForMe = () => {
+  //   // TODO: Implement AI-powered event planning
+  //   // This could open a modal or trigger an API call to suggest event details
+  //   alert("AI Event Planner coming soon!");
+  // };
 
   const recurrenceOptions = [
     { value: '', label: 'No Repeat' },
@@ -317,7 +378,7 @@ export default function EventDialog({
           fullWidth 
           variant="contained" 
           color="primary" 
-          onClick={handlePlanForMe}
+          onClick={() => onPlanForMe()}
         >
           AI Event Planner
         </Button>
