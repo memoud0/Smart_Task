@@ -1,7 +1,7 @@
 "use client"
 import React, { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
-import { formatDate } from '@fullcalendar/core'
+// import { formatDate } from '@fullcalendar/core'
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
@@ -27,11 +27,20 @@ interface GoogleCalendarEvent {
 
 export default function CalendarComponent() {
   const { data: session } = useSession();
-  const [currentEvents, setCurrentEvents] = useState<any[]>([]);
+  const [currentEvents, setCurrentEvents] = useState([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedStart, setSelectedStart] = useState<Date | null>(null);
   const [selectedEnd, setSelectedEnd] = useState<Date | null>(null);
-  const [editingEvent, setEditingEvent] = useState<any>(null);
+  interface EditingEvent {
+    id: string;
+    title: string;
+    start: Date;
+    end: Date;
+    description?: string;
+    location?: string;
+  }
+  
+  const [editingEvent, setEditingEvent] = useState<EditingEvent | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const calendarRef = useRef<FullCalendar>(null);
 
@@ -110,10 +119,10 @@ export default function CalendarComponent() {
       const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${session.accessToken}`,
+          'Authorization': `Bearer ${session?.accessToken}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(eventBody)
+        body: JSON.stringify(eventData)
       });
   
       // More comprehensive error handling
@@ -200,6 +209,7 @@ export default function CalendarComponent() {
   }
 
   // Delete event from Google Calendar
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async function deleteGoogleCalendarEvent(eventId: string) {
     if (!session?.accessToken) {
       console.error('No access token available');
@@ -236,11 +246,12 @@ export default function CalendarComponent() {
 
   function handleEventClick(clickInfo: EventClickArg) {
     const event = clickInfo.event;
+    const current_date = new Date();
     setEditingEvent({
       id: event.id,
       title: event.title,
-      start: event.start,
-      end: event.end,
+      start: event.start || current_date,
+      end: event.end || current_date,
       description: event.extendedProps.description,
       location: event.extendedProps.location
     });
@@ -254,31 +265,66 @@ export default function CalendarComponent() {
     setEditingEvent(null);
   }
 
-  async function handleDialogSave(formData: FormData) {
+  async function handleDialogSave(eventData: {
+    title: string;
+    description?: string;
+    startDate: string;
+    startTime: string;
+    endDate: string;
+    endTime: string;
+    location?: string;
+    attendees?: string[];
+    file?: File | null;
+    eventId?: string;
+    recurrence?: string;
+  }) {
     try {
- 
-      const startDate = formData.get('startDate') as string;
-      const startTime = formData.get('startTime') as string;
-      const endDate = formData.get('endDate') as string;
-      const endTime = formData.get('endTime') as string;
+      console.log('Saving event data:', eventData);
       
- 
-      const start = new Date(`${startDate}T${startTime}`);
-      const end = new Date(`${endDate}T${endTime}`);
+      let result;
+      const calendarApi = calendarRef.current?.getApi();
 
-      const newEvent = {
-        id: createEventId(),
-        title: 'New Event', 
-        start,
-        end,
-        allDay: false,
-      };
+      // Validate start and end times
+      const startDateTime = new Date(`${eventData.startDate}T${eventData.startTime}:00`);
+      const endDateTime = new Date(`${eventData.endDate}T${eventData.endTime}:00`);
 
-      let calendarApi = calendarRef.current?.getApi(); 
- 
+      if (startDateTime >= endDateTime) {
+        alert('End time must be after start time');
+        return;
+      }
 
-      if (calendarApi) {
-        calendarApi.addEvent(newEvent);
+      if (eventData.eventId) {
+        // Update existing event
+        result = await updateGoogleCalendarEvent(eventData);
+        console.log('Update result:', result);
+      } else {
+        // Create new event
+        result = await createGoogleCalendarEvent(eventData);
+        console.log('Create result:', result);
+      }
+
+      if (result) {
+        console.log('Event added/updated in calendar');
+        
+        // Remove existing event if updating
+        if (eventData.eventId) {
+          const existingEvent = calendarApi?.getEventById(eventData.eventId);
+          if (existingEvent) {
+            existingEvent.remove();
+          }
+        }
+        
+        // Add new/updated event to calendar
+        calendarApi?.addEvent({
+          id: result.id,
+          title: result.summary,
+          start: result.start.dateTime,
+          end: result.end.dateTime,
+          extendedProps: {
+            description: result.description,
+            location: result.location
+          }
+        });
       } else {
         console.error('Failed to save event');
         alert('Failed to save event. Please try again.');
@@ -291,17 +337,23 @@ export default function CalendarComponent() {
     }
   }
 
-  function handleEventClick(clickInfo) {
-    if (confirm(`Are you sure you want to delete the event '${clickInfo.event.title}'`)) {
-      clickInfo.event.remove()
-    }
+  // If no session, show login prompt
+  if (!session) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <p>Please sign in to view your calendar</p>
+      </div>
+    );
   }
 
-  function handleEvents(events) {
-    setCurrentEvents(events)
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <p>Loading events...</p>
+      </div>
+    );
   }
-
-   const calendarRef = React.useRef<FullCalendar>(null);
 
   return (
     <div className='demo-app'>
@@ -331,16 +383,8 @@ export default function CalendarComponent() {
         onSave={handleDialogSave}
         selectedStart={selectedStart}
         selectedEnd={selectedEnd}
+        existingEvent={editingEvent}
       />
     </div>
-  )
-}
-
-function renderEventContent(eventInfo) {
-  return (
-    <>
-      <b>{eventInfo.timeText}</b>
-      <i>{eventInfo.event.title}</i>
-    </>
   )
 }
