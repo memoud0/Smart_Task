@@ -45,6 +45,7 @@ export default function EventDialog({
   open,
   onClose,
   onSave,
+  onPlanForMe,
   selectedStart,
   selectedEnd,
   existingEvent
