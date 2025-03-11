@@ -6,7 +6,9 @@ import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import { DateSelectArg, EventClickArg } from '@fullcalendar/core'
-import EventDialog from './Dialog'
+import EventDialog from './Dialog';
+import momentPlugin from '@fullcalendar/moment';
+
 
 // Type for our stored event
 interface StoredEvent {
@@ -440,7 +442,7 @@ export default function CalendarComponent() {
       <div className='demo-app-main'>
         <FullCalendar
           ref={calendarRef}
-          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, momentPlugin]}
           headerToolbar={{
             left: 'prev,next today',
             center: 'title',
@@ -456,6 +458,7 @@ export default function CalendarComponent() {
           eventClick={handleEventClick}
         />
       </div>
+
 
       <EventDialog
         open={isDialogOpen}

@@ -11,6 +11,12 @@ import {
   InputLabel,
   FormControl
 } from '@mui/material';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterMoment } from '@mui/x-date-pickers/AdapterMoment';
+import { EventCreationFormInput } from '../types/FormTypes';
+import { EventCreationFormSchema } from '../schema';
+import { useForm } from "react-hook-form";
 
 interface eventObject{
     title: string;
@@ -73,10 +79,18 @@ export default function EventDialog({
   const [endDate, setEndDate] = React.useState('');
   const [endTime, setEndTime] = React.useState('');
   const [location, setLocation] = React.useState('');
-  const [attendees, setAttendees] = React.useState('');
   const [file, setFile] = React.useState<File | null>(null);
   const [recurrence, setRecurrence] = React.useState('');
 
+  const {
+      register,
+      handleSubmit,
+      formState: { errors },
+      setError,
+    } = useForm<EventCreationFormInput>({
+      resolver: zodResolver(EventCreationFormSchema),
+    });
+    
   // Helper function to format date to local time string
   const formatTimeString = (date: Date | null): string => {
     if (!date) return '';
@@ -245,6 +259,7 @@ const handlePlanForMe = async () => {
   ];
 
   return (
+    <LocalizationProvider dateAdapter={AdapterMoment}>
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>
         {existingEvent ? 'Edit Event' : 'Create New Event'}
@@ -257,8 +272,8 @@ const handlePlanForMe = async () => {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           required
-          error={!title}
-          helperText={!title ? 'Title is required' : ''}
+          error={errors.title}
+          helperText={errors.title ? errors.title.message : ''}
         />
 
         {/* Description */}
@@ -335,13 +350,7 @@ const handlePlanForMe = async () => {
           onChange={(e) => setLocation(e.target.value)}
         />
 
-        {/* Attendees */}
-        <TextField
-          fullWidth
-          label="Attendees (comma-separated emails)"
-          value={attendees}
-          onChange={(e) => setAttendees(e.target.value)}
-        />
+
 
         {/* Recurrence */}
         <FormControl fullWidth>
@@ -395,5 +404,6 @@ const handlePlanForMe = async () => {
         </Button>
       </DialogActions>
     </Dialog>
+    </LocalizationProvider>
   );
 }
