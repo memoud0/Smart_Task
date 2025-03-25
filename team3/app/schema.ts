@@ -108,6 +108,27 @@ export const LoginFormSchema = z.object({
     extendedProps: z.record(z.any()).optional().describe("Miscellaneous other properties"),
     source: z.any().nullable().optional().describe("Reference to the Event Source")
   });
+
+export const EventObjectSchemaGPT = z.object({
+  id: z.string().optional().describe("A unique identifier of an event"),
+  title: z.string().describe("Name of the course and assignment. Find them in the PDF"),
+
+  // Core date properties
+  start: z.string().describe("Date object that obeys the current timeZone. When an event begins"),
+  end: z.string().describe("Date object that obeys the current timeZone. When an event ends"), //NOTE: The original format used a Date object, here we use a string
+  startStr: z.string().describe("ISO8601 string representation of the start date and time"),
+  endStr: z.string().describe("ISO8601 string representation of the end date and time"),
+  allDay: z.boolean().describe("Determines if the event is shown in the all-day section"),
+
+  // Optional properties from form data
+  description: z.string().optional().describe("Description of the event"),
+  location: z.string().optional().describe("Location where the event takes place"),
+  attendees: z.array(z.string()).optional().describe("List of attendees for the event"),
+  recurrence: z.string().optional().describe("Recurrence pattern for the event"),
+
+  ChatGptComment: z.string().optional().describe("Comments for the event. Specify how much time you think the assignment will take."),
+  FirstQuestion: z.string().optional().describe("First question of the provided assignment. Transcribe it here"),
+});
   
   // Type definitions
   export type EventCreationFormInput = z.infer<typeof EventCreationFormSchema>;

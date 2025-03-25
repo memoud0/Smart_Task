@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
+import {EventObjectSchemaGPT} from "@/app/schema";
+import {zodResponseFormat} from "openai/helpers/zod";
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
@@ -40,19 +42,22 @@ export async function POST(req: Request) {
 
         console.log("File uploaded:", uploadedFile.id);
         const messageContent = file
-        ? `Based on the provided assignment file, schedule "${title}" at a suitable date and time without conflicting existing events. Return only a JSON object with exact 'start' and 'end' ISO date-time strings. Start date should be after ${new Date().toISOString()}.`
-        : `Schedule "${title}" at a suitable date and time without conflicting existing events. Return only a JSON object with exact 'start' and 'end' ISO date-time strings. Start date should be after ${new Date().toISOString()}.`;
+        ? `Based on the provided assignment file, schedule "${title}" at a suitable date and time without conflicting existing events.
+        Return only a JSON object with exact 'start' and 'end' ISO date-time strings. Start date should be after ${new Date().toISOString()}.`
+        : `Schedule "${title}" at a suitable date and time without conflicting existing events. Return an event using the provided JSON format.
+         Start date should be after ${new Date().toISOString()}. Specify the course name and assignment name in the title field.
+         `;
         
         const thread = await openai.beta.threads.create();
         const message = await openai.beta.threads.messages.create(thread.id, {
         role: "user",
         content: messageContent,
-      attachments: file ? [{ file_id: uploadedFile.id, tools: [{ type: "code_interpreter" }] }] : undefined
+      attachments: [{file_id: uploadedFile.id, tools: [{type: "code_interpreter"}]}],
     });
 
         const run = await openai.beta.threads.runs.create(thread.id, {
             assistant_id: process.env.OPENAI_ASSISTANT_ID!,
-            response_format: { type: "json_object" }
+            response_format: zodResponseFormat(EventObjectSchemaGPT, "CalendarEvent")
         });
 
         while (true) {
